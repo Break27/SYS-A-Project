@@ -165,6 +165,15 @@ ReadSector:
 	pop						bx
 
 	mov						dl, [BS_DrvNum]				; Drive number
+.ContinReading:
+	mov						ah, 2						; Read
+	mov 					al, byte [bp-2]				; read sectors
+	int						13h
+	jc						.ContinReading
+
+	add						esp, 2
+	pop						bp
+	ret
 
 GetFATEntry:
 	push					es
@@ -200,18 +209,12 @@ LABEL_EVEN:
 	jnz						LABEL_EVEN_2
 	shr						ax, 4
 
+LABEL_EVEN_2:
+	and						ax, 0FFFh
+
 LABEL_OK:
 	pop						bx
 	pop						es
-	ret
-.ContinReading:
-	mov						ah, 2						; Read
-	mov 					al, byte [bp-2]				; read sectors
-	int						13h
-	jc						.ContinReading
-
-	add						esp, 2
-	pop						bp
 	ret
 
 	;; end
