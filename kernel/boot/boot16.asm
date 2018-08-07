@@ -1,6 +1,7 @@
 ;; boot16.asm	Filesys Fat12
 
 	org						07c00h						; load to 7c00
+	BaseOfStack				equ		07c00h
 
 	jmp short LABEL_START								; boot
 	nop
@@ -30,7 +31,7 @@ LABEL_START:
 	xor						dl, dl
 	int						13h
 
-;; Find F12LOADER.BIN under the root directory of A-dirve
+;; Find F12LOADER.BIN under the root directory of A-drive
 	mov						word 	[wSectorNo], SectorNoOfRootDirectory
 
 LABEL_SrhRootDir_BEGIN:
@@ -44,7 +45,7 @@ LABEL_SrhRootDir_BEGIN:
 	mov 					cl, 1
 	call					ReadSector
 
-	mov 					si, LoaderFileName
+	mov 					si, LoaderNm
 	mov						di, OffsetOfLoader
 	cld
 	mov						dx, 10h
@@ -71,7 +72,7 @@ LABEL_CONTIN:
 LABEL_MISMATCH:
 	and						di, 0FFE0h
 	add						di, 20h
-	mov						si, LoaderFileName
+	mov						si, LoaderNm
 	jmp						LABEL_SrhLoader
 
 LABEL_NxtSecInRoot:
@@ -126,17 +127,17 @@ LABEL_LOADED:
 	wSectorNo				dw		0
 	bODD					db		0
 	LoaderNm				db		"F12LOADER  BIN"	; Loader filename
-	MsgLength				equ		55
+	MsgLength				equ		26
 
 ;; strings
-	BootMSG:				db 		"BOOT16: BOOTING ...    						        "
-	MsgReady				db		"BOOT16: 'F12LOADER.BIN' FOUND.      				    "
-	MsgNoLoader				db		"BOOT16: ERROR! 'F12LOADER.BIN' NOT FOUND, ABORTING.    "
+	BootMSG:				db 		"BOOTING ...    		   "
+	MsgReady				db		"'F12LOADER.BIN' FOUND.    "
+	MsgNoLoader				db		"'F12LOADER.BIN' NOT FOUND."
 
 DispStr:
 	mov 					ax, MsgLength
 	mul						dh
-	add						ax, ds
+	add						ax, BootMSG
 	mov						bp, ax
 	mov						ax, ds
 	mov						es, ax
@@ -218,5 +219,5 @@ LABEL_OK:
 	ret
 
 	;; end
-	times 					510 - ($-$$) db 0			; Fill up empty space
+	times 					510-($-$$)	db 0			; Fill up empty space
 	dw 						0xaa55

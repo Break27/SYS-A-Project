@@ -20,7 +20,7 @@ _start:
 	mov						esp, StackTop
 
 	sgdt					[gdt_ptr]
-	call					cstart
+	call					CBEGIN
 	lgdt					[gdt_ptr]
 
 	jmp						SELECTOR_KERNEL_CS:CSINIT

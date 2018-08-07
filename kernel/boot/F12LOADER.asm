@@ -9,9 +9,9 @@
 
 	;GDT                    SBA					LMT    		PRO
 LABEL_GDT:					Descriptor 0,       0,     		0
-LABEL_DFLAT_C:				Descriptor 0,   	0fffffh, 	DA_CR|DA_32|DA_LIMIT_4K		; 0-4GB
-LABEL_DFLAT_RW:				Descriptor 0,   	0fffffh,	DA_DRW|DA_32|DA_LIMIT_4K	; 0-4GB
-LABEL_DVIDEO:				Descriptor 0B8000h, 0ffffh,		DA_DRW|DA_DPL3
+LABEL_DFLAT_C:				Descriptor 0,   	0fffffh, 	DA_CR | DA_32 | DA_LIMIT_4K		; 0-4GB
+LABEL_DFLAT_RW:				Descriptor 0,   	0fffffh,	DA_DRW | DA_32 | DA_LIMIT_4K	; 0-4GB
+LABEL_DVIDEO:				Descriptor 0B8000h, 0ffffh,		DA_DRW | DA_DPL3
 
 	GdtLen					equ		$-LABEL_GDT
 	GdtPtr					dw		GdtLen - 1
@@ -168,14 +168,14 @@ LABEL_LOADED:
 	MsgLength				equ		55
 
 ;; strings
-	BootMSG:				db 		"LOADER: LOADING 'KERNEL32.BIN' ...    				    "
+	LoadMSG:				db 		"LOADER: LOADING 'KERNEL32.BIN' ...    				    "
 	MsgReady				db		"Ready.      									        "
 	MsgNoLoader				db		"LOADER: ERROR! 'KERNEL32.BIN' NOT FOUND, ABORTING.     "
 
 DispStr:
 	mov 					ax, MsgLength
 	mul						dh
-	add						ax, ds
+	add						ax, LoadMSG
 	mov						bp, ax
 	mov						ax, ds
 	mov						es, ax
@@ -330,7 +330,7 @@ SetupPagin:
 	add						eax, 4096
 	loop					.1
 
-	//Reinitializing page table
+	;; Reinitializing page table
 	pop						eax
 	mov						ebx, 1024
 	mul						ecx, eax
