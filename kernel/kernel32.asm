@@ -14,7 +14,7 @@
 StackTop:
 	[SECTION .text]
 
-	global_start
+	global					_start
 
 _start:
 	mov						esp, StackTop

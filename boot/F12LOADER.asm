@@ -6,25 +6,28 @@
 
 	%include				"F12HDR.inc"
 	%include				"Loader.inc"
+	%include				"Base.inc"
 
-	;GDT                    SBA					LMT    		PRO
+	BaseOfStack				equ		0100h
+
+	;GDT                    SBA					LMT    		ATB
 LABEL_GDT:					Descriptor 0,       0,     		0
 LABEL_DFLAT_C:				Descriptor 0,   	0fffffh, 	DA_CR | DA_32 | DA_LIMIT_4K		; 0-4GB
 LABEL_DFLAT_RW:				Descriptor 0,   	0fffffh,	DA_DRW | DA_32 | DA_LIMIT_4K	; 0-4GB
 LABEL_DVIDEO:				Descriptor 0B8000h, 0ffffh,		DA_DRW | DA_DPL3
 
-	GdtLen					equ		$-LABEL_GDT
+	GdtLen					equ		$ - LABEL_GDT
 	GdtPtr					dw		GdtLen - 1
 							dd		BaseOfLoaderPhyAddr + LABEL_GDT
 
 	SelectorFlatC			equ		LABEL_DFLAT_C - LABEL_GDT
-	SelectorFlatRW			equ		LABEL_DLAT_RW - LABEL_GDT
-	SelectorFlatVd			equ		LABEL_DVIDEO - LABEL_GDT + SA_RPL3
+	SelectorFlatRW			equ		LABEL_DFLAT_RW - LABEL_GDT
+	SelectorVd				equ		LABEL_DVIDEO - LABEL_GDT + SA_RPL3
 
 	PageDirBase				equ		100000h
 	PageTblBase				equ		101000h
 
-LABLE_START:
+LABEL_START:
 	mov						ax, cs
 	mov						ds, ax
 	mov						es, ax
@@ -36,7 +39,7 @@ LABLE_START:
 
 	;; Get memory size
 	mov						ebx, 0
-	mov						di, _MemChkBuff
+	mov						di, _MemChkBuf
 .MemChkLp:
 	mov						eax, 0E820h
 	mov						ecx, 20
@@ -45,7 +48,7 @@ LABLE_START:
 	jc						.MemChkFail
 	add						di, 20
 	inc						dword	[_dwMCRNum]
-	cmp						cbx, 0
+	cmp						ebx, 0
 	jne						.MemChkLp
 	jmp						.MemChkOK
 .MemChkFail:
@@ -81,7 +84,7 @@ LABEL_SrhKernel:
 LABEL_CmpName:
 	cmp						cx, 0
 	jz						LABEL_FOUND
-	deccx
+	dec						cx
 	lodsb
 	cmp						al, byte	[es:di]
 	jz						LABEL_CONTIN
@@ -89,7 +92,7 @@ LABEL_CmpName:
 
 LABEL_CONTIN:
 	inc						di
-	jmp						LABEL_CmpFlNm
+	jmp						LABEL_CmpName
 
 LABEL_MISMATCH:
 	and						di, 0FFE0h
@@ -130,9 +133,9 @@ LABEL_LOADING:
 	pop						ax
 	call					GetFATEntry
 	cmp						ax, 0FFFh
-	jz						LABEL_FILE_LOADED
+	jz						LABEL_LOADED
 	push					ax
-	mov						dx, RootDirSector
+	mov						dx, RootDirSectors
 	add						ax, dx
 	add						ax, DeltaSectorNo
 	add						bx, [BPB_BytsPerSec]
@@ -161,13 +164,57 @@ LABEL_LOADED:
 
 	jmp						dword	SelectorFlatC:(BaseOfLoaderPhyAddr + LABEL_PM_START)
 
+GetFATEntry:
+	push					es
+	push					bx
+	push					ax
+	mov						ax, BaseOfLoader
+	sub						ax, 0100h
+	mov						es, ax
+	pop						ax
+	mov						bx, 3
+	mul						bx
+	mov						bx, 2
+	div						bx
+	cmp						dx, 0
+	jz						LABEL_EVEN
+	mov						byte 	[bODD], 1
+
+LABEL_EVEN:
+	xor						dx, dx
+	mov						bx, [BPB_BytsPerSec]
+	div						bx
+
+	push					dx
+	mov						bx, 0
+	add						ax, SectorNoOfFAT1
+	mov						cl, 2
+	call					ReadSector
+
+	pop						dx
+	add						bx, dx
+	mov						ax, [es:bx]
+	cmp						byte	[bODD], 1
+	jnz						LABEL_EVEN_2
+	shr						ax, 4
+
+LABEL_EVEN_2:
+	and						ax, 0FFFh
+
+LABEL_OK:
+	pop						bx
+	pop						es
+	ret
+
 ;; variables
 	wRootDirSizForLoop		dw		RootDirSectors
 	wSectorNo				dw		0
-	KernelNm				db		"KERNEL32  BIN"	; Loader filename
-	MsgLength				equ		55
+	bODD					db		0
+	dwKernelSize			dd		0
 
 ;; strings
+	KernelNm				db		"KERNEL32  BIN"	; Loader filename
+	MsgLength				equ		55
 	LoadMSG:				db 		"LOADER: LOADING 'KERNEL32.BIN' ...    				    "
 	MsgReady				db		"Ready.      									        "
 	MsgNoLoader				db		"LOADER: ERROR! 'KERNEL32.BIN' NOT FOUND, ABORTING.     "
@@ -205,22 +252,6 @@ ReadSector:
 
 	mov						dl, [BS_DrvNum]				; Drive number
 
-GetFATEntry:
-	push					es
-	push					bx
-	push					ax
-	mov						ax, BaseOfLoader
-	sub						ax, 0100h
-	mov						es, ax
-	pop						ax
-	mov						bx, 3
-	mul						bx
-	mov						bx, 2
-	div						bx
-	cmp						dx, 0
-	jz						LABEL_EVEN
-	mov						byte 	[bODD], 1
-
 DRV_LIGHTS_OUT:
 	push					dx
 	mov						dx, 03F2h
@@ -239,7 +270,7 @@ DRV_LIGHTS_OUT:
 	%include				"Functions.inc"
 
 LABEL_PM_START:
-	mov						ax, SelectorVideo
+	mov						ax, SelectorVd
 	mov						gs, ax
 
 	mov						ax, SelectorFlatRW
@@ -266,13 +297,44 @@ LABEL_PM_START:
 	StackSpace				times	1024 db 0
 	TopOfStack				equ		BaseOfLoaderPhyAddr + $
 
+MemCpy:
+	push					ebp
+	mov						ebp, esp
+
+	push					esi
+	push					edi
+	push					ecx
+
+	mov						edi, [ebp + 8]
+	mov						esi, [ebp + 12]
+	mov						ecx, [ebp + 16]
+.1:
+	cmp						ecx, 0
+	jz						.2
+
+	mov						al, [ds:esi]
+	inc						esi
+
+	dec						ecx
+	jmp						.1
+.2:
+	mov						eax, [ebp + 8]
+
+	pop						ecx
+	pop						edi
+	pop						esi
+	mov						esp, ebp
+	pop						ebp
+
+	ret
+
 DisMemInfo:
 	push					esi
 	push					edi
 	push					ecx
 
 	mov						esi, MemChkBuf
-	mov						ecx, [dw_MCRNum]
+	mov						ecx, [dwMCRNum]
 .loop:
 	mov						edx, 5
 	mov						edi, ARDStruct
@@ -312,7 +374,7 @@ DisMemInfo:
 
 SetupPagin:
 	xor						edx, edx
-	mov						eax, [dw_MemSize]
+	mov						eax, [dwMemSize]
 	mov						ebx, 400000h			; 400000h = 4MB
 	div						ebx
 	mov						ecx, eax
@@ -333,7 +395,8 @@ SetupPagin:
 	;; Reinitializing page table
 	pop						eax
 	mov						ebx, 1024
-	mul						ecx, eax
+	mul						ebx
+	mov						ecx, eax
 	mov						edi, PageTblBase
 	xor						eax, eax
 	mov						eax, PG_P | PG_USU | PG_RWW

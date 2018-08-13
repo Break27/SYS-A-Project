@@ -15,7 +15,7 @@ ScrOpt:
 	push				edi
 
 	mov					esi, [ebp + 8]							; pszInfo
-	mov					edi, [dwDispPos]
+	mov					edi, [dwDisPos]
 	mov					ah, 0Fh
 .1:
 	lodsb
@@ -40,7 +40,7 @@ ScrOpt:
 	jmp					.1
 
 .2:
-	mov					[dwDispPos], edi
+	mov					[dwDisPos], edi
 
 	pop					edi
 	pop					esi
@@ -67,10 +67,10 @@ DisInt:
 	mov					ah, 07h									; Fore GRAY, Back BLACK
 	mov					al, 'h'
 	push				edi
-	mov					edi, [dwDispPos]
+	mov					edi, [dwDisPos]
 	mov					[gs:edi], ax
 	add					edi, 4
-	mov					[dwDispPos], edi
+	mov					[dwDisPos], edi
 	pop					edi
 
 	ret
@@ -80,7 +80,7 @@ DisAL:
 	push				edx
 	push				edi
 
-	mov					edi, [dwDispPos]
+	mov					edi, [dwDisPos]
 
 	mov					ah, 0Fh									; Fore WHITE, Back BLACK
 	mov					dl, al
@@ -103,7 +103,7 @@ DisAL:
 	loop				.begin
 	;add				edi, 2
 
-	mov					[dwDispPos], edi
+	mov					[dwDisPos], edi
 
 	pop					edi
 	pop					edx
